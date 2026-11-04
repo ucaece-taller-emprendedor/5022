@@ -12,3 +12,6 @@ out/
 *.tsbuildinfo
 npm-debug.log*
 .DS_Store
+next-env.d.ts
+playwright-report/
+test-results/
