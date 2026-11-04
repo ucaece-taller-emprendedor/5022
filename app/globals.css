@@ -24,4 +24,9 @@
 /* Mejoras de navegación y legibilidad */
 .panel+.panel{margin-top:18px}.panel .mini{margin-top:16px;line-height:1.6}.stat b{overflow-wrap:anywhere}.fixture-score{font-size:16px!important}.textlink{display:inline-block;color:var(--lime);font-weight:800;font-size:13px;margin-top:10px}.sidebar .side-link{min-width:0}.panel table{min-width:540px}.formbox .mini{color:#ffce94}.navright button{white-space:nowrap}@media(max-width:580px){.navright .btn{padding:10px 11px;font-size:11px}.nav .brand{font-size:24px}.statgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.stat{padding:15px}.stat b{font-size:22px}.panel{padding:17px}.fixture{align-items:flex-start}.fixture-score{font-size:14px!important}}
 .attendance-select{background:#0c1912;color:#fff;border:1px solid #3c5746;border-radius:9px;padding:9px;max-width:180px;width:100%}.panel .field{max-width:440px}.panel .field input,.panel .field select{width:100%;background:#0c1912;border:1px solid #3c5746;border-radius:10px;padding:12px;color:#fff}
+
+/* El control vive dentro del label (accesibilidad): el texto del label se estiliza en el span. */
+.field label{font:inherit;margin:0}.field label>span{display:block;font-size:12px;font-weight:800;margin-bottom:8px}
+/* Mobile: los links del menú no se encogen (en el original se pisaban entre sí). */
+@media(max-width:900px){.sidebar .side-link{flex:none}}
 }

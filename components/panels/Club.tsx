@@ -17,7 +17,7 @@ export default async function Club({
   if (section === "plantel")
     return (
       <>
-        <Box title={`Plantel · ${players.length} jugadores`}>
+        <Box title={`Plantel · ${players.length} ${players.length === 1 ? "jugador" : "jugadores"}`}>
           {players.length ? (
             <Table head={["Jugador", "Posición", "PJ", "Tries", ""]}>
               {players.map((p) => (

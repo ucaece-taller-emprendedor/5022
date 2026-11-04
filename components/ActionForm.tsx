@@ -29,11 +29,14 @@ export default function ActionForm({ action, submitLabel, children, id }: Props)
   );
 }
 
+/** El control va dentro del <label>, así queda asociado sin depender de ids. */
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="field">
-      <label>{label}</label>
-      {children}
+      <label>
+        <span>{label}</span>
+        {children}
+      </label>
     </div>
   );
 }
