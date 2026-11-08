@@ -2,7 +2,6 @@ import { createBrowserRouter, Navigate } from 'react-router'
 import { RequireAdmin, RequireAuth, RequireRole } from '@/auth/guards'
 import { AdminLayout, SitioLayout } from '@/components/layouts'
 import Administradores from '@/pages/admin/Administradores'
-import Estadisticas from '@/pages/admin/Estadisticas'
 import AdminLogin from '@/pages/admin/AdminLogin'
 import { AdminCategorias, AdminClubes, AdminInicio, AdminPartidos, AdminUsuarios } from '@/pages/admin/AdminPaginas'
 import { AppInicio, CompletarPerfil, Ingresar, Registro, Suspendido } from '@/pages/app/Acceso'
@@ -39,14 +38,13 @@ export const router = createBrowserRouter([
     path: '/admin',
     element: (
       <RequireAdmin>
-        <AdminLayout navegacion={[{ to: '/admin', etiqueta: 'Inicio', fin: true }, { to: '/admin/usuarios', etiqueta: 'Usuarios y aprobaciones' }, { to: '/admin/administradores', etiqueta: 'Administradores' }, { to: '/admin/estadisticas', etiqueta: 'Estadísticas' }, { to: '/admin/clubes', etiqueta: 'Clubes' }, { to: '/admin/categorias', etiqueta: 'Categorías' }, { to: '/admin/partidos', etiqueta: 'Partidos y resultados' }]} />
+        <AdminLayout navegacion={[{ to: '/admin', etiqueta: 'Inicio', fin: true }, { to: '/admin/usuarios', etiqueta: 'Usuarios y aprobaciones' }, { to: '/admin/administradores', etiqueta: 'Administradores' }, { to: '/admin/clubes', etiqueta: 'Clubes' }, { to: '/admin/categorias', etiqueta: 'Categorías' }, { to: '/admin/partidos', etiqueta: 'Partidos y resultados' }]} />
       </RequireAdmin>
     ),
     children: [
       { index: true, element: <AdminInicio /> },
       { path: 'usuarios', element: <AdminUsuarios /> },
       { path: 'administradores', element: <Administradores /> },
-      { path: 'estadisticas', element: <Estadisticas /> },
       { path: 'clubes', element: <AdminClubes /> },
       { path: 'categorias', element: <AdminCategorias /> },
       { path: 'partidos', element: <AdminPartidos /> },
