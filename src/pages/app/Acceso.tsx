@@ -39,7 +39,7 @@ function SelectorTipo({ valor, onCambio, error }: { valor: string; onCambio: (v:
 }
 
 export function Ingresar() {
-  const { ingresar, ingresarConGoogle, perfil, cargando } = useAuth()
+  const { ingresar, ingresarConGoogle, usuario, perfil, cargando } = useAuth()
   const navegar = useNavigate()
   const loc = useLocation()
   const [errores, setErrores] = useState<Errores>({})
@@ -47,6 +47,7 @@ export function Ingresar() {
   const [enviando, setEnviando] = useState(false)
 
   if (cargando && !enviando) return <Cargando />
+  if (usuario && !perfil) return <Navigate to="/app/completar-perfil" replace />
   if (perfil) return <Navigate to={(loc.state as { desde?: string } | null)?.desde ?? panelDe(perfil.role)} replace />
 
   async function enviar(e: FormEvent<HTMLFormElement>) {
