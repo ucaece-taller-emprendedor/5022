@@ -1,0 +1,22 @@
+@import 'tailwindcss';
+@import './tema.css';
+
+/* Los colores del tema quedan disponibles como clases: bg-primario, text-suave, border-borde, etc. */
+@theme inline {
+  --color-primario: var(--tema-primario);
+  --color-primario-texto: var(--tema-primario-texto);
+  --color-acento: var(--tema-acento);
+  --color-fondo: var(--tema-fondo);
+  --color-superficie: var(--tema-superficie);
+  --color-texto: var(--tema-texto);
+  --color-suave: var(--tema-texto-suave);
+  --color-borde: var(--tema-borde);
+  --color-peligro: var(--tema-peligro);
+  --color-ok: var(--tema-ok);
+  --radius-tema: var(--tema-radio);
+  --font-sans: var(--tema-fuente);
+}
+
+html { background: var(--tema-fondo); color: var(--tema-texto); }
+body { min-height: 100dvh; margin: 0; font-family: var(--tema-fuente); }
+:focus-visible { outline: 2px solid var(--tema-primario); outline-offset: 2px; }

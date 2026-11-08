@@ -1,0 +1,82 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REGLAS DE SEGURIDAD — son la "validación del servidor" de esta app.
+// Todo lo que no está permitido acá, queda DENEGADO.
+// Roles: usuario | socio (requiere aprobación) | admin (custom claim `admin: true`).
+// Si cambiás roles o colecciones en la app, cambialos acá y en tests/rules.
+// ─────────────────────────────────────────────────────────────────────────────
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function signedIn() { return request.auth != null; }
+    // El rol admin se da con un custom claim (scripts/admin-dar.ts). Un usuario no puede ponérselo.
+    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function userDoc(uid) { return get(/databases/$(database)/documents/users/$(uid)).data; }
+    function hasUserDoc(uid) { return exists(/databases/$(database)/documents/users/$(uid)); }
+    function isActive() { return signedIn() && hasUserDoc(request.auth.uid) && userDoc(request.auth.uid).status == 'activo'; }
+    function hasRole(role) { return isActive() && userDoc(request.auth.uid).role == role; }
+    function onlyKeys(keys) { return request.resource.data.keys().hasOnly(keys); }
+    function hasKeys(keys) { return request.resource.data.keys().hasAll(keys); }
+    function str(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
+
+    // ── users/{uid} ────────────────────────────────────────────────────────
+    // Cada uno lee su perfil; el admin lee y gestiona todos.
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+
+      // Alta: solo el propio usuario, solo roles registrables, y el estado inicial queda
+      // fijado por el rol (usuario → activo; socio → pendiente hasta que el admin apruebe).
+      // NUNCA se puede crear con role 'admin'.
+      allow create: if isOwner(uid)
+        && onlyKeys(['email', 'displayName', 'role', 'status', 'isDemo', 'createdAt'])
+        && hasKeys(['email', 'displayName', 'role', 'status', 'isDemo', 'createdAt'])
+        && str(request.resource.data.displayName, 2, 80)
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.isDemo == false
+        && request.resource.data.createdAt == request.time
+        && ((request.resource.data.role == 'usuario' && request.resource.data.status == 'activo')
+         || (request.resource.data.role == 'socio' && request.resource.data.status == 'pendiente'));
+
+      // El dueño solo puede cambiar su nombre. role y status están vedados (no hay escalada).
+      allow update: if (isOwner(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])
+          && str(request.resource.data.displayName, 2, 80))
+        // El admin cambia tipo (nunca a 'admin') y estado.
+        || (isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'status', 'displayName'])
+          && request.resource.data.role in ['usuario', 'socio', 'admin']
+          && request.resource.data.status in ['activo', 'pendiente', 'suspendido']
+          && (request.resource.data.role != 'admin' || resource.data.role == 'admin'));
+
+      allow delete: if false;
+    }
+
+    // ── items/{id} (colección de ejemplo) ──────────────────────────────────
+    function itemValido(d) {
+      return str(d.titulo, 3, 100) && str(d.descripcion, 10, 1000) && d.publicado is bool;
+    }
+    match /items/{id} {
+      // Lo publicado es público; lo no publicado solo lo ve su dueño o el admin.
+      allow read: if resource.data.publicado == true || isOwner(resource.data.ownerId) || isAdmin();
+
+      // Solo un socio ACTIVO (aprobado) crea, y a su nombre.
+      allow create: if hasRole('socio')
+        && onlyKeys(['ownerId', 'ownerName', 'titulo', 'descripcion', 'publicado', 'isDemo', 'createdAt'])
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerName == userDoc(request.auth.uid).displayName
+        && request.resource.data.isDemo == false
+        && request.resource.data.createdAt == request.time
+        && itemValido(request.resource.data);
+
+      // Edición: el dueño (si sigue activo) o el admin; no se puede cambiar de dueño.
+      allow update: if ((hasRole('socio') && isOwner(resource.data.ownerId)) || isAdmin())
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['titulo', 'descripcion', 'publicado'])
+        && itemValido(request.resource.data);
+
+      allow delete: if (hasRole('socio') && isOwner(resource.data.ownerId)) || isAdmin();
+    }
+  }
+}
