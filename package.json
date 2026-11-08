@@ -20,7 +20,8 @@
     "admin:dar:prod": "tsx scripts/admin-dar.ts --produccion",
     "test:reglas": "firebase emulators:exec --only firestore --project demo-plantilla \"vitest run\"",
     "test:e2e": "firebase emulators:exec --only auth,firestore --project demo-plantilla \"playwright test\"",
-    "test": "npm run test:reglas && npm run test:e2e"
+    "test": "npm run test:reglas && npm run test:e2e",
+    "deploy:reglas": "firebase deploy --only firestore:rules,firestore:indexes"
   },
   "dependencies": {
     "firebase": "^12.19.0",
