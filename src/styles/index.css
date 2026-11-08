@@ -1,3 +1,5 @@
+@import '@fontsource-variable/dm-sans';
+@import '@fontsource-variable/space-grotesk';
 @import 'tailwindcss';
 @import './tema.css';
 
@@ -11,12 +13,16 @@
   --color-texto: var(--tema-texto);
   --color-suave: var(--tema-texto-suave);
   --color-borde: var(--tema-borde);
+  --color-superficie2: var(--tema-superficie-2);
   --color-peligro: var(--tema-peligro);
   --color-ok: var(--tema-ok);
   --radius-tema: var(--tema-radio);
   --font-sans: var(--tema-fuente);
+  --font-titulo: var(--tema-fuente-titulo);
 }
 
 html { background: var(--tema-fondo); color: var(--tema-texto); }
 body { min-height: 100dvh; margin: 0; font-family: var(--tema-fuente); }
 :focus-visible { outline: 2px solid var(--tema-primario); outline-offset: 2px; }
+
+h1, h2, h3, .font-titulo { font-family: var(--tema-fuente-titulo); letter-spacing: -0.03em; }
