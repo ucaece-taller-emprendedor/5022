@@ -1,5 +1,5 @@
 import { LogOut } from 'lucide-react'
-import { NavLink, Outlet, useNavigate } from 'react-router'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import { useAuth } from '@/auth/useAuth'
 import { MARCA, panelDe } from '@/config/app'
 import { Marca } from './Marca'
@@ -10,7 +10,9 @@ export type EnlaceNav = { to: string; etiqueta: string; fin?: boolean }
 const enlace = ({ isActive }: { isActive: boolean }) => `rounded-full px-3 py-2 text-sm font-medium ${isActive ? 'bg-primario text-primario-texto' : 'text-texto hover:bg-primario/10'}`
 
 /** Cabecera común de la web pública y del panel de usuarios. */
-export function SitioLayout({ navegacion = [] }: { navegacion?: EnlaceNav[] }) {
+const NAVEGACION_PUBLICA: EnlaceNav[] = [{ to: '/partidos', etiqueta: 'Partidos' }, { to: '/posiciones', etiqueta: 'Posiciones' }]
+
+export function SitioLayout({ navegacion = NAVEGACION_PUBLICA }: { navegacion?: EnlaceNav[] }) {
   const { perfil, usuario, salir } = useAuth()
   const navegar = useNavigate()
   return (
@@ -45,8 +47,13 @@ export function SitioLayout({ navegacion = [] }: { navegacion?: EnlaceNav[] }) {
       <main className="flex-1">
         <Outlet />
       </main>
-      <footer className="border-t border-borde bg-superficie px-4 py-6 text-center text-sm text-suave">
-        {MARCA.nombre} · Proyecto del Taller Emprendedor · {MARCA.contacto}
+      <footer className="border-t border-borde px-4 py-6 text-xs text-suave">
+        <div className="mx-auto flex max-w-6xl flex-wrap justify-between gap-2">
+          <span>
+            © 2026 {MARCA.nombre} · Construido para clubes. Hecho para atletas. · <Link to="/admin/login" className="font-semibold text-primario">Administración</Link>
+          </span>
+          <span>Prototipo académico · Todos los datos son ficticios</span>
+        </div>
       </footer>
     </div>
   )

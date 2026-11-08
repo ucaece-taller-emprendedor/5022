@@ -14,13 +14,13 @@ export function RequireAuth({ children }: { children?: ReactNode }) {
   return children ?? <Outlet />
 }
 
-/** Exige uno de los roles dados. Los usuarios suspendidos no entran; los pendientes ven un aviso. */
+/** Exige uno de los roles dados. Los suspendidos o rechazados no entran; los pendientes ven un aviso. */
 export function RequireRole({ roles, children }: { roles: Rol[]; children?: ReactNode }) {
   const { perfil, cargando } = useAuth()
   if (cargando) return <Cargando />
   if (!perfil) return <Navigate to="/app/ingresar" replace />
   if (!roles.includes(perfil.role)) return <Navigate to={panelDe(perfil.role)} replace />
-  if (perfil.status === 'suspendido') return <Navigate to="/app/suspendido" replace />
+  if (perfil.status === 'suspendido' || perfil.status === 'rechazado') return <Navigate to="/app/suspendido" replace />
   return children ?? <Outlet />
 }
 

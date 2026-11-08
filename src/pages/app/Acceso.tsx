@@ -3,8 +3,12 @@ import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react
 import { useAuth } from '@/auth/useAuth'
 import { Alerta, Boton, Campo, Cargando, Tarjeta } from '@/components/ui'
 import { panelDe, ROLES_REGISTRABLES, type RolRegistrable } from '@/config/app'
+
 import { loginSchema, perfilSchema, registroSchema } from '@/lib/validations/auth'
 import { mensajeDeError, validarFormulario, type Errores } from '@/lib/validations/form'
+
+const pideOrganizacion = (rol: string) => ROLES_REGISTRABLES.find(r => r.rol === rol)?.pideOrganizacion === true
+const etiquetaOrganizacion = (rol: string) => (rol === 'union' ? 'Nombre de la Unión' : 'Nombre del club')
 
 function BotonGoogle({ onClick, deshabilitado }: { onClick: () => void; deshabilitado: boolean }) {
   return (
@@ -112,8 +116,8 @@ export function Registro() {
     setError('')
     setEnviando(true)
     try {
-      await registrar({ nombre: r.datos.nombre, email: r.datos.email, clave: r.datos.clave, rol: r.datos.rol as RolRegistrable })
-      navegar(panelDe(r.datos.rol as 'usuario'), { replace: true })
+      await registrar({ nombre: r.datos.nombre, email: r.datos.email, clave: r.datos.clave, rol: r.datos.rol as RolRegistrable, organizacion: r.datos.organizacion })
+      navegar(panelDe(r.datos.rol as RolRegistrable), { replace: true })
     } catch (err) {
       setError(mensajeDeError(err))
     } finally {
@@ -122,6 +126,19 @@ export function Registro() {
   }
   async function conGoogle() {
     setError('')
+    if (pideOrganizacion(rol)) {
+      // Con Google no hay formulario completo: el nombre del club/Unión se pide en "Completar perfil".
+      setEnviando(true)
+      try {
+        await ingresarConGoogle()
+        navegar('/app/completar-perfil', { replace: true, state: { rol } })
+      } catch (err) {
+        setError(mensajeDeError(err))
+      } finally {
+        setEnviando(false)
+      }
+      return
+    }
     setEnviando(true)
     try {
       await ingresarConGoogle(rol as RolRegistrable)
@@ -139,6 +156,7 @@ export function Registro() {
         <h1 className="text-2xl font-bold">Crear cuenta</h1>
         <form onSubmit={e => void enviar(e)} noValidate className="mt-4 space-y-4">
           <SelectorTipo valor={rol} onCambio={setRol} error={errores.rol} />
+          {pideOrganizacion(rol) && <Campo etiqueta={etiquetaOrganizacion(rol)} name="organizacion" placeholder={rol === 'union' ? 'Ej: Unión de Rugby de…' : 'Ej: Club Atlético…'} error={errores.organizacion} ayuda="Tu cuenta queda pendiente hasta que un administrador la apruebe." />}
           <Campo etiqueta="Nombre" name="nombre" autoComplete="name" error={errores.nombre} />
           <Campo etiqueta="Email" name="email" type="email" autoComplete="email" error={errores.email} />
           <Campo etiqueta="Contraseña" name="clave" type="password" autoComplete="new-password" ayuda="Mínimo 8 caracteres." error={errores.clave} />
@@ -159,7 +177,9 @@ export function Registro() {
 export function CompletarPerfil() {
   const { usuario, perfil, completarPerfil, cargando } = useAuth()
   const navegar = useNavigate()
-  const [rol, setRol] = useState<string>(ROLES_REGISTRABLES[0]?.rol ?? '')
+  const loc = useLocation()
+  const rolInicial = (loc.state as { rol?: string } | null)?.rol
+  const [rol, setRol] = useState<string>(ROLES_REGISTRABLES.some(r => r.rol === rolInicial) ? (rolInicial as string) : ROLES_REGISTRABLES[0]?.rol ?? '')
   const [errores, setErrores] = useState<Errores>({})
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -175,7 +195,7 @@ export function CompletarPerfil() {
     if (!r.datos) return
     setEnviando(true)
     try {
-      await completarPerfil({ nombre: r.datos.nombre, rol: r.datos.rol as RolRegistrable })
+      await completarPerfil({ nombre: r.datos.nombre, rol: r.datos.rol as RolRegistrable, organizacion: r.datos.organizacion })
       navegar('/app', { replace: true })
     } catch (err) {
       setError(mensajeDeError(err))
@@ -189,6 +209,7 @@ export function CompletarPerfil() {
         <h1 className="text-2xl font-bold">Completá tu perfil</h1>
         <form onSubmit={e => void enviar(e)} noValidate className="mt-4 space-y-4">
           <SelectorTipo valor={rol} onCambio={setRol} error={errores.rol} />
+          {pideOrganizacion(rol) && <Campo etiqueta={etiquetaOrganizacion(rol)} name="organizacion" error={errores.organizacion} ayuda="Tu cuenta queda pendiente hasta que un administrador la apruebe." />}
           <Campo etiqueta="Nombre" name="nombre" defaultValue={usuario.displayName ?? ''} error={errores.nombre} />
           {error && <Alerta>{error}</Alerta>}
           <Boton type="submit" className="w-full" disabled={enviando}>Continuar</Boton>
@@ -199,11 +220,14 @@ export function CompletarPerfil() {
 }
 
 export function Suspendido() {
-  const { salir } = useAuth()
+  const { salir, perfil } = useAuth()
+  const rechazado = perfil?.status === 'rechazado'
   return (
     <div className="mx-auto max-w-md px-4 py-16 text-center">
-      <h1 className="text-2xl font-bold">Tu cuenta está suspendida</h1>
-      <p className="mt-2 text-suave">Escribinos si creés que es un error.</p>
+      <h1 className="text-2xl font-bold">{rechazado ? 'Tu solicitud no fue aprobada' : 'Tu cuenta está suspendida'}</h1>
+      <p className="mt-2 text-suave">
+        {rechazado ? 'Un administrador rechazó la solicitud de esta cuenta. Si creés que es un error, contactá a la Unión.' : 'Un administrador suspendió esta cuenta. Contactá a la Unión para más información.'}
+      </p>
       <Boton className="mt-6" onClick={() => void salir()}>Salir</Boton>
     </div>
   )

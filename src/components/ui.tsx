@@ -2,13 +2,13 @@ import { Loader2 } from 'lucide-react'
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react'
 import { Link, type LinkProps } from 'react-router'
 
-const base = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50'
+const base = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-tema px-5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50'
 const variantes = {
   primario: 'bg-primario text-primario-texto hover:opacity-90',
-  acento: 'bg-acento text-texto hover:opacity-90',
-  borde: 'border border-borde bg-superficie text-texto hover:bg-fondo',
+  acento: 'bg-acento text-primario-texto hover:opacity-90',
+  borde: 'border border-borde bg-superficie2 text-texto hover:brightness-125',
   fantasma: 'text-primario hover:bg-primario/10',
-  peligro: 'bg-peligro text-white hover:opacity-90',
+  peligro: 'bg-peligro text-primario-texto hover:opacity-90',
 }
 export type Variante = keyof typeof variantes
 
