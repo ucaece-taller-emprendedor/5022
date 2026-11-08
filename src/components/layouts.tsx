@@ -18,14 +18,16 @@ export function SitioLayout({ navegacion = NAVEGACION_PUBLICA }: { navegacion?: 
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-20 border-b border-borde bg-superficie/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-2">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-2">
           <Marca to="/" />
-          <nav aria-label="Principal" className="flex flex-wrap items-center gap-1">
-            {navegacion.map(n => (
-              <NavLink key={n.to} to={n.to} end={n.fin} className={enlace}>
-                {n.etiqueta}
-              </NavLink>
-            ))}
+          <nav aria-label="Principal" className="flex items-center gap-1">
+            <div className="hidden items-center gap-1 md:flex">
+              {navegacion.map(n => (
+                <NavLink key={n.to} to={n.to} end={n.fin} className={enlace}>
+                  {n.etiqueta}
+                </NavLink>
+              ))}
+            </div>
             {usuario && perfil ? (
               <>
                 <NavLink to={panelDe(perfil.role)} className={enlace}>

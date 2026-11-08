@@ -1,18 +1,22 @@
-# Plantilla de app para startups — Taller Emprendedor
+# 5022 — Rugby de Mar del Plata (Taller Emprendedor, UCAECE)
 
-Plantilla común para las apps de las startups del Taller Emprendedor (UCAECE Mar del Plata). Trae lo mismo en todas: web pública, app de usuarios (registro, login con Google y con email, tipos de usuario con aprobación), panel de administración, base de datos, reglas de seguridad, tests y publicación automática. **Todo gratis y sin tarjeta** (Firebase plan Spark + GitHub).
+**5022** es una plataforma de información y gestión del rugby marplatense: los **aficionados** ven resultados, fixtures, posiciones y estadísticas; los **clubes** (con aprobación del admin) gestionan plantel, asistencia y lesiones; la **Unión** (con aprobación del admin) ve competencias, calendario y clubes y puede crear torneos y cargar resultados; el **superadmin** gestiona usuarios, aprobaciones y los datos principales. Está construida desde la plantilla común del Taller (Vite + React + TypeScript + Tailwind + Firebase). **Todo gratis y sin tarjeta** (Firebase plan Spark + GitHub).
 
-> Esta es la versión **neutra**. Para ver una app real armada con ella, mirá la rama `piloto-vacacionapp`.
+Sitio: https://rugby5022-mdp.web.app (cuando se despliegue) · Proyecto Firebase: `rugby5022-mdp`.
+
+> Es una **demo académica**: clubes, planteles, resultados y cuentas son ficticios y no representan información oficial de la Unión.
 
 ## Qué incluye
 
 | Parte | Ruta | Descripción |
 |---|---|---|
-| Web pública | `/` | Landing: problema, solución, beneficios, llamado a la acción, botones Ingresar / Registrarme |
-| App de usuarios | `/app/...` | Registro y login (Google y email/contraseña), sesión persistente, tipo de usuario, panel por rol. Mobile first |
-| Administración | `/admin/...` | Solo login (sin registro). Gestiona usuarios y datos. Rol validado en el servidor con las reglas |
+| Web pública | `/`, `/partidos`, `/posiciones` | Landing (problema, solución, beneficios, CTA, botones Ingresar / Registrarme) y explorador público de resultados y tabla, con selector de categoría |
+| App de usuarios | `/app/...` | Registro y login (Google y email/contraseña), sesión persistente, elección del tipo de usuario al registrarse. Paneles: `/app/aficionado`, `/app/club`, `/app/union` (cada uno con sus secciones). Mobile first |
+| Administración | `/admin/...` | Solo login (sin registro público): usuarios y aprobaciones, clubes, categorías, partidos y resultados |
 
-**Stack:** Vite + React + TypeScript estricto + Tailwind + React Router · Firebase (Auth + Firestore + Hosting) · Zod · ESLint · Playwright · GitHub Actions. Sin servidor propio, sin Cloud Functions, sin Storage.
+**Tipos de usuario:** aficionado (activo al registrarse) · club y unión (quedan **pendientes** hasta que el admin los aprueba; piden el nombre del club o de la Unión) · superadmin (custom claim, se da fuera de la app). Un aficionado puede pedir después el perfil de club o Unión desde su panel.
+
+**Stack:** Vite + React + TypeScript estricto + Tailwind + React Router · Firebase (Auth + Firestore + Hosting) · Zod · ESLint · Vitest · Playwright · GitHub Actions. Sin servidor propio, sin Cloud Functions, sin Storage. Tipografías (Space Grotesk y DM Sans) incluidas en el build: no se piden a servidores externos.
 
 ## Correrlo en tu computadora (con emuladores, sin tocar producción)
 
@@ -25,7 +29,7 @@ npm run seed              # terminal 2: carga los usuarios y datos DEMO
 npm run dev:emulador      # terminal 2: la app en http://localhost:5122
 ```
 
-Los emuladores empiezan vacíos cada vez que se reinician: volvé a correr `npm run seed`.
+Los emuladores empiezan vacíos cada vez que se reinician: volvé a correr `npm run seed`. Esta app usa puertos propios (app 5122, Auth 9522, Firestore 8523) para poder correr junto con otras apps de la cátedra.
 
 ### Usuarios de prueba (DEMO, claves públicas, solo existen en los emuladores)
 
@@ -33,12 +37,26 @@ Contraseña de todos: `Demo-Clave-2026`
 
 | Tipo | Email | Estado |
 |---|---|---|
-| Usuario | `usuario.demo@plantilla.test` | activo |
-| Socio | `socio.demo@plantilla.test` | activo |
-| Socio pendiente | `pendiente.demo@plantilla.test` | pendiente de aprobación |
-| Admin | `admin.demo@plantilla.test` | entra en `/admin/login` |
+| Aficionado | `aficionado@demo.5022.test` | activo |
+| Club | `club@demo.5022.test` | activo, club "Mar del Plata Club" con plantel, asistencia y lesiones de ejemplo |
+| Unión | `union@demo.5022.test` | activa |
+| Club pendiente | `club.pendiente@demo.5022.test` | club "Los Tilos RC (pendiente)", para practicar la aprobación |
+| Superadmin | `admin@demo.5022.test` | entra en `/admin/login` |
+
+Todo lo demo está marcado `isDemo` y con la etiqueta DEMO en pantalla. Los datos incluyen 8 clubes, un torneo ("Torneo Regional · Primera") con 5 fechas (3 jugadas) y un plantel de 8 jugadores.
 
 > **Login con Google:** no se puede probar contra los emuladores (Google no autentica en local). Se prueba en el sitio publicado.
+
+## Datos y reglas
+
+Colecciones: `users`, `clubs` (id = uid del dueño si lo registró él), `clubs/{id}/jugadores|asistencias|lesiones` (privadas del club), `categorias` y `partidos` (públicos). Las posiciones **se calculan** en el navegador a partir de los resultados (4 puntos por victoria y 2 por empate, sin bonus, igual que el prototipo original).
+
+Las reglas (`firestore.rules`) verifican, entre otras cosas: que nadie cambie su propio rol ni estado (un club/unión no se aprueba solo), que los clubes pendientes no sean públicos, que el plantel, la asistencia y las lesiones solo los vean el club dueño (aprobado) y el admin, que solo el admin o una Unión aprobada gestionen torneos y resultados, y que los puntajes, enums, fechas y nombres de club sean válidos. Detalle en `firestore.rules` y `tests/rules/`.
+
+Notas del modelo Firestore:
+- No hay borrado en cascada: al borrar un club, un jugador o una categoría, la app borra a mano lo que cuelga de ellos (plantel, asistencia, lesiones, partidos).
+- Aprobar un club = aprobar su cuenta en *Usuarios y aprobaciones*: activa el usuario y su club en un solo paso.
+- Un partido guarda el nombre de los clubes (copia); si se renombra un club, los partidos viejos conservan el nombre anterior.
 
 ## Variables de entorno
 
@@ -86,8 +104,8 @@ Para que el workflow funcione el responsable del proyecto configura **una sola v
 ## Cómo desplegar (lo hace el responsable del proyecto)
 
 1. Crear el proyecto en [Firebase Console](https://console.firebase.google.com) (**plan Spark**, no activar Blaze), habilitar *Authentication* (Email/contraseña y Google), *Firestore* (modo producción) y *Hosting*. Registrar una app web y copiar su config a `.env.production`.
-2. Ajustar el id del proyecto en `.firebaserc`.
-3. Subir las reglas: `npx firebase deploy --only firestore:rules,firestore:indexes` (o `npm run deploy:reglas`).
+2. El id del proyecto ya está en `.firebaserc` (`rugby5022-mdp`).
+3. Subir las reglas: `npx firebase deploy --account fvinciguerra@ucaecemdp.edu.ar --project rugby5022-mdp --only firestore:rules,firestore:indexes` (o `npm run deploy:reglas`).
 4. Conectar GitHub ↔ Hosting **una sola vez**: `npx firebase init hosting:github` (crea la cuenta de servicio y carga el secreto `FIREBASE_SERVICE_ACCOUNT_...` en GitHub; **no se crea ni se sube a mano**). Ajustar el nombre del secreto en `.github/workflows/deploy.yml` si hace falta.
 5. Desde ahí, **cada merge a `main` publica la web** (`.github/workflows/deploy.yml`). Las reglas se vuelven a desplegar con el paso 3 cuando cambian.
 6. En Authentication → Configuración → Dominios autorizados, verificar que figure el dominio `.web.app` del sitio (para el login con Google).
@@ -131,7 +149,7 @@ firestore.rules · firestore.indexes.json · firebase.json
 .github/workflows/       ← ci.yml, deploy.yml, admin-dar.yml
 ```
 
-Guía para convertir la plantilla en una startup nueva: [`docs/NUEVA-STARTUP.md`](docs/NUEVA-STARTUP.md).
+Cómo se arma una startup nueva a partir de la plantilla: [`docs/NUEVA-STARTUP.md`](docs/NUEVA-STARTUP.md).
 
 ## Licencia
 

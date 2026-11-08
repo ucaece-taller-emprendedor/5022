@@ -184,24 +184,25 @@ function Asistencias({ clubId, plantel }: { clubId: string; plantel: Con<Jugador
         </div>
         {aviso && <Alerta>{aviso}</Alerta>}
         {plantel.length ? (
-          <Tabla cabecera={['Jugador', 'Posición', 'Asistencia']}>
+          <ul className="divide-y divide-borde">
             {plantel.map(p => (
-              <tr key={p.id}>
-                <td>{p.name}</td><td>{p.position}</td>
-                <td>
-                  <select
-                    aria-label={`Asistencia de ${p.name}`}
-                    value={porJugador[p.id] ?? ''}
-                    onChange={e => void marcar(p.id, e.target.value)}
-                    className="min-h-11 w-full max-w-44 rounded-tema border border-borde bg-fondo px-2 text-base text-texto"
-                  >
-                    <option value="">Sin registrar</option>
-                    {ASISTENCIAS.map(a => <option key={a} value={a}>{a[0]?.toUpperCase()}{a.slice(1)}</option>)}
-                  </select>
-                </td>
-              </tr>
+              <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                <div>
+                  <p className="text-sm font-semibold">{p.name}</p>
+                  <p className="text-xs text-suave">{p.position}</p>
+                </div>
+                <select
+                  aria-label={`Asistencia de ${p.name}`}
+                  value={porJugador[p.id] ?? ''}
+                  onChange={e => void marcar(p.id, e.target.value)}
+                  className="min-h-11 w-44 rounded-tema border border-borde bg-fondo px-2 text-base text-texto"
+                >
+                  <option value="">Sin registrar</option>
+                  {ASISTENCIAS.map(a => <option key={a} value={a}>{a[0]?.toUpperCase()}{a.slice(1)}</option>)}
+                </select>
+              </li>
             ))}
-          </Tabla>
+          </ul>
         ) : <p className="text-suave">Primero cargá jugadores en la sección Plantel.</p>}
       </Caja>
     </>
