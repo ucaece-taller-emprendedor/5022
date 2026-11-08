@@ -1,0 +1,18 @@
+/* TEMA 5022 — fondo oscuro verde, lima como acento. Identidad del prototipo original. */
+:root {
+  --tema-primario: #c7f36b;
+  --tema-primario-texto: #172216;
+  --tema-acento: #77bf9c;
+  --tema-fondo: #0b1512;
+  --tema-superficie: #13231d;
+  --tema-superficie-2: #1b3027;
+  --tema-texto: #f2f6ef;
+  --tema-texto-suave: #9fb4a6;
+  --tema-borde: #2b4538;
+  --tema-peligro: #ff8a7a;
+  --tema-ok: #8be2a0;
+  --tema-radio: 0.8rem;
+  --tema-fuente: 'DM Sans Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --tema-fuente-titulo: 'Space Grotesk Variable', 'DM Sans Variable', system-ui, sans-serif;
+  color-scheme: dark;
+}

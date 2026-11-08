@@ -1,14 +1,18 @@
-
-# Variables de entorno: nunca se suben (solo .env.example)
-.env
-.env.*
-!.env.example
-
-# Dependencias y builds
 node_modules
-.next/
-out/
-.vercel/
+dist
+.env
+.env.local
+*.local
+.firebase
+*-debug.log
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+playwright-report
+test-results
 *.tsbuildinfo
-npm-debug.log*
 .DS_Store
+# Nunca subir claves de cuentas de servicio
+*service-account*.json
+*-firebase-adminsdk-*.json
+.claude/
