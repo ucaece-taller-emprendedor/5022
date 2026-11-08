@@ -97,14 +97,8 @@ describe('users: alta y escalada de privilegios', () => {
     await assertSucceeds(updateDoc(doc(db, 'users/clubpend'), { status: 'activo' }))
     await assertSucceeds(updateDoc(doc(db, 'users/unionpend'), { status: 'rechazado' }))
     await assertSucceeds(updateDoc(doc(db, 'users/fan1'), { status: 'suspendido' }))
-    await assertFails(updateDoc(doc(db, 'users/fan1'), { role: 'admin' }))
     await assertFails(updateDoc(doc(db, 'users/fan1'), { status: 'cualquiera' }))
     await assertFails(deleteDoc(doc(db, 'users/fan1')))
-  })
-  it('un usuario con role "admin" en su doc pero SIN claim no es admin', async () => {
-    await env.withSecurityRulesDisabled(async ctx => setDoc(doc(ctx.firestore(), 'users/falso'), { email: 'f@test.com', displayName: 'Falso', role: 'admin', status: 'activo', isDemo: false, createdAt: new Date() }))
-    await assertFails(getDocs(collection(como('falso'), 'users')))
-    await assertFails(setDoc(doc(como('falso'), 'categorias/x'), { competition: 'Hack', name: 'X', season: 'Y', isDemo: false, createdAt: serverTimestamp() }))
   })
 })
 
@@ -245,5 +239,37 @@ describe('categorias y partidos', () => {
   it('colecciones no declaradas están denegadas', async () => {
     await assertFails(setDoc(doc(admin(), 'otra/x'), { a: 1 }))
     await assertFails(getDoc(doc(admin(), 'otra/x')))
+  })
+})
+
+describe('administradores dados desde la app (role "admin" en el perfil)', () => {
+  const adminDoc = (uid: string, status = 'activo') =>
+    env.withSecurityRulesDisabled(async ctx => setDoc(doc(ctx.firestore(), `users/${uid}`), { email: `${uid}@test.com`, displayName: 'Admin De App', role: 'admin', status, isDemo: false, createdAt: new Date() }))
+
+  it('un admin (claim) promueve a un usuario activo y esa persona pasa a ser admin', async () => {
+    await assertFails(getDocs(collection(como('fan1'), 'users')))
+    await assertSucceeds(updateDoc(doc(admin(), 'users/fan1'), { role: 'admin' }))
+    await assertSucceeds(getDocs(collection(como('fan1'), 'users')))
+  })
+  it('no se puede promover a alguien pendiente o suspendido, ni cambiar otros campos a la vez', async () => {
+    await assertFails(updateDoc(doc(admin(), 'users/clubpend'), { role: 'admin' }))
+    await assertFails(updateDoc(doc(admin(), 'users/fan1'), { role: 'admin', displayName: 'Otro' }))
+  })
+  it('quien no es admin no puede promover a nadie, ni a sí mismo', async () => {
+    await assertFails(updateDoc(doc(como('fan1'), 'users/fan2'), { role: 'admin' }))
+    await assertFails(updateDoc(doc(como('fan1'), 'users/fan1'), { role: 'admin' }))
+  })
+  it('un admin de la app promueve y quita el rol a otros, pero no cambia el propio', async () => {
+    await adminDoc('adm1')
+    await adminDoc('adm2')
+    const db = como('adm1')
+    await assertSucceeds(updateDoc(doc(db, 'users/fan1'), { role: 'admin' }))
+    await assertSucceeds(updateDoc(doc(db, 'users/adm2'), { role: 'aficionado' }))
+    await assertFails(updateDoc(doc(db, 'users/adm1'), { role: 'aficionado' }))
+    await assertFails(deleteDoc(doc(db, 'users/fan1')))
+  })
+  it('un admin de la app suspendido pierde los poderes', async () => {
+    await adminDoc('adm3', 'suspendido')
+    await assertFails(getDocs(collection(como('adm3'), 'users')))
   })
 })

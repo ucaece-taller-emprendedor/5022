@@ -17,8 +17,11 @@ service cloud.firestore {
 
     // ── Helpers ────────────────────────────────────────────────────────────
     function signedIn() { return request.auth != null; }
-    // El rol admin se da con un custom claim (scripts/admin-dar.ts). Un usuario no puede ponérselo.
-    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+    // Admin = custom claim (scripts/admin-dar.ts, para los admins iniciales) o role 'admin' en users/{uid}. Un usuario no puede ponérselo.
+    function isAdmin() { return signedIn() && (request.auth.token.admin == true || isAdminDoc()); }
+    // Admin "de la app": un admin ya existente le dio role 'admin' en users/{uid} (pantalla Administradores).
+    // Solo un admin puede escribir ese rol (ver reglas de users): nadie se lo puede poner solo.
+    function isAdminDoc() { return exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'activo'; }
     function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
     function userDoc(uid) { return get(/databases/$(database)/documents/users/$(uid)).data; }
     function hasUserDoc(uid) { return exists(/databases/$(database)/documents/users/$(uid)); }
@@ -74,7 +77,15 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'status', 'displayName'])
           && request.resource.data.role in ['aficionado', 'club', 'union', 'admin']
           && request.resource.data.status in ['activo', 'pendiente', 'rechazado', 'suspendido']
-          && (request.resource.data.role != 'admin' || resource.data.role == 'admin'));
+          && request.resource.data.role != 'admin' && resource.data.role != 'admin');
+
+      // Dar y quitar el rol de admin: solo un admin, solo sobre OTRA persona, y solo cambia `role`.
+      // Se puede promover a alguien con la cuenta activa; al quitar el rol vuelve a ser 'aficionado'.
+      allow update: if isAdmin()
+        && uid != request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
+        && ((request.resource.data.role == 'admin' && resource.data.role != 'admin' && resource.data.status == 'activo')
+         || (resource.data.role == 'admin' && request.resource.data.role == 'aficionado'));
 
       allow delete: if false;
     }

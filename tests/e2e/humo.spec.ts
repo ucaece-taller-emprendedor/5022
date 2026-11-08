@@ -171,3 +171,32 @@ test('el admin ve "Cambiar mi contraseña" en su panel', async ({ page }) => {
   await page.getByRole('button', { name: 'Cambiar mi contraseña' }).click()
   await expect(page.getByText('Te enviamos un mail con el enlace.')).toBeVisible()
 })
+
+test('un admin le da el rol de admin a un usuario ya registrado, que entra a /admin', async ({ page, browser }, info) => {
+  const email = `futura.admin.${info.project.name}.${Date.now()}@ejemplo.test`
+  await page.goto('/app/registro')
+  await page.getByRole('radio', { name: /^Aficionado/ }).check()
+  await page.getByLabel('Nombre', { exact: true }).fill('Futura Admin')
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Contraseña').fill(CLAVE)
+  await page.getByRole('button', { name: 'Registrarme' }).click()
+  await expect(page).toHaveURL(/\/app\/aficionado$/)
+
+  const ctx = await browser.newContext({ baseURL: info.project.use.baseURL, viewport: info.project.use.viewport ?? null })
+  const adm = await ctx.newPage()
+  await adm.goto('/admin/login')
+  await adm.getByLabel('Email', { exact: true }).fill('admin@demo.5022.test')
+  await adm.getByLabel('Contraseña').fill(CLAVE)
+  await adm.getByRole('button', { name: 'Ingresar', exact: true }).click()
+  await expect(adm).toHaveURL(/\/admin$/)
+  await adm.goto('/admin/administradores')
+  await expect(adm.getByText('primero tiene que registrarse en la app')).toBeVisible()
+  await adm.getByLabel('Buscar por nombre o email').fill(email)
+  await adm.getByTestId(`admin-fila-${email}`).getByRole('button', { name: 'Hacer admin' }).click()
+  await expect(adm.getByTestId(`admin-fila-${email}`).getByRole('button', { name: 'Quitar admin' })).toBeVisible()
+  await ctx.close()
+
+  // La persona ya tenía sesión: al recargar, su perfil dice admin y /admin/login la deja pasar al panel.
+  await page.goto('/admin/login')
+  await expect(page).toHaveURL(/\/admin$/)
+})
