@@ -39,7 +39,7 @@ Colecciones: users, clubs, jugadores, asistencias, lesiones, categorias, partido
 ## Entornos y ramas
 | Rama | Qué es | Qué pasa al hacer push/merge |
 |---|---|---|
-| `prod` | lo que ve el público | se publica en https://rugby5022-mdp.web.app (Hosting + reglas) |
+| `prod` | lo que ve el público | se publica en https://5022-ucaecemdp.web.app (Hosting + reglas) |
 | `qa` | integración y revisión | se publica una **vista previa** (canal `qa`, URL en el log del workflow) |
 | `feature/*` | trabajo de cada cambio | corre CI en el PR |
 

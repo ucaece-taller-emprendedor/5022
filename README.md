@@ -2,7 +2,7 @@
 
 **5022** es una plataforma de información y gestión del rugby marplatense: los **aficionados** ven resultados, fixtures, posiciones y estadísticas; los **clubes** (con aprobación del admin) gestionan plantel, asistencia y lesiones; la **Unión** (con aprobación del admin) ve competencias, calendario y clubes y puede crear torneos y cargar resultados; el **superadmin** gestiona usuarios, aprobaciones y los datos principales. Está construida desde la plantilla común del Taller (Vite + React + TypeScript + Tailwind + Firebase). **Todo gratis y sin tarjeta** (Firebase plan Spark + GitHub).
 
-Sitio: https://rugby5022-mdp.web.app (cuando se despliegue) · Proyecto Firebase: `rugby5022-mdp`.
+Sitio: https://5022-ucaecemdp.web.app (cuando se despliegue) · Proyecto Firebase: `rugby5022-mdp`.
 
 > Es una **demo académica**: clubes, planteles, resultados y cuentas son ficticios y no representan información oficial de la Unión.
 
