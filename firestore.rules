@@ -1,10 +1,16 @@
 rules_version = '2';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// REGLAS DE SEGURIDAD — son la "validación del servidor" de esta app.
+// REGLAS DE SEGURIDAD DE 5022 — son la "validación del servidor" de esta app.
 // Todo lo que no está permitido acá, queda DENEGADO.
-// Roles: usuario | socio (requiere aprobación) | admin (custom claim `admin: true`).
+// Roles: aficionado | club (requiere aprobación) | union (requiere aprobación) | admin (custom claim `admin: true`).
 // Si cambiás roles o colecciones en la app, cambialos acá y en tests/rules.
+//
+// Colecciones:
+//   users/{uid}                          perfil + rol + estado de aprobación
+//   clubs/{id}                           clubes (públicos si están activos; id = uid si lo registró su dueño)
+//   clubs/{id}/jugadores|asistencias|lesiones   datos PRIVADOS del club (solo su dueño y el admin)
+//   categorias/{id}, partidos/{id}       torneos y resultados (públicos; escriben admin y Unión activa)
 // ─────────────────────────────────────────────────────────────────────────────
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -21,62 +27,189 @@ service cloud.firestore {
     function onlyKeys(keys) { return request.resource.data.keys().hasOnly(keys); }
     function hasKeys(keys) { return request.resource.data.keys().hasAll(keys); }
     function str(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
+    function entero(v, min, max) { return v is int && v >= min && v <= max; }
+    function isoDate(v) { return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
+    // Admin o Unión ya aprobada: gestionan torneos, fixtures y resultados.
+    function gestionaTorneos() { return isAdmin() || hasRole('union'); }
+    // Es el dueño de un club ya aprobado (y su cuenta de club está activa).
+    function esClubActivo(clubId) {
+      return hasRole('club')
+        && exists(/databases/$(database)/documents/clubs/$(clubId))
+        && get(/databases/$(database)/documents/clubs/$(clubId)).data.ownerId == request.auth.uid
+        && get(/databases/$(database)/documents/clubs/$(clubId)).data.status == 'activo';
+    }
 
     // ── users/{uid} ────────────────────────────────────────────────────────
     // Cada uno lee su perfil; el admin lee y gestiona todos.
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
 
-      // Alta: solo el propio usuario, solo roles registrables, y el estado inicial queda
-      // fijado por el rol (usuario → activo; socio → pendiente hasta que el admin apruebe).
-      // NUNCA se puede crear con role 'admin'.
+      // Alta: solo el propio usuario, solo roles registrables, y el estado inicial queda fijado por el rol
+      // (aficionado → activo; club/unión → pendiente hasta que el admin apruebe). NUNCA con role 'admin'.
       allow create: if isOwner(uid)
-        && onlyKeys(['email', 'displayName', 'role', 'status', 'isDemo', 'createdAt'])
+        && onlyKeys(['email', 'displayName', 'role', 'status', 'organization', 'isDemo', 'createdAt'])
         && hasKeys(['email', 'displayName', 'role', 'status', 'isDemo', 'createdAt'])
         && str(request.resource.data.displayName, 2, 80)
         && request.resource.data.email == request.auth.token.email
         && request.resource.data.isDemo == false
         && request.resource.data.createdAt == request.time
-        && ((request.resource.data.role == 'usuario' && request.resource.data.status == 'activo')
-         || (request.resource.data.role == 'socio' && request.resource.data.status == 'pendiente'));
+        && ((request.resource.data.role == 'aficionado' && request.resource.data.status == 'activo' && !('organization' in request.resource.data))
+         || (request.resource.data.role in ['club', 'union'] && request.resource.data.status == 'pendiente'
+             && str(request.resource.data.get('organization', null), 2, 120)));
 
-      // El dueño solo puede cambiar su nombre. role y status están vedados (no hay escalada).
-      allow update: if (isOwner(uid)
+      allow update: if
+        // El dueño puede cambiar su nombre...
+        (isOwner(uid)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])
           && str(request.resource.data.displayName, 2, 80))
-        // El admin cambia tipo (nunca a 'admin') y estado.
+        // ...y un aficionado puede PEDIR el perfil de club o Unión: queda pendiente, nunca activo.
+        || (isOwner(uid)
+          && resource.data.role == 'aficionado' && resource.data.status == 'activo'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'status', 'organization'])
+          && request.resource.data.role in ['club', 'union']
+          && request.resource.data.status == 'pendiente'
+          && str(request.resource.data.get('organization', null), 2, 120))
+        // El admin cambia tipo (nunca lo convierte en 'admin') y estado.
         || (isAdmin()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'status', 'displayName'])
-          && request.resource.data.role in ['usuario', 'socio', 'admin']
-          && request.resource.data.status in ['activo', 'pendiente', 'suspendido']
+          && request.resource.data.role in ['aficionado', 'club', 'union', 'admin']
+          && request.resource.data.status in ['activo', 'pendiente', 'rechazado', 'suspendido']
           && (request.resource.data.role != 'admin' || resource.data.role == 'admin'));
 
       allow delete: if false;
     }
 
-    // ── items/{id} (colección de ejemplo) ──────────────────────────────────
-    function itemValido(d) {
-      return str(d.titulo, 3, 100) && str(d.descripcion, 10, 1000) && d.publicado is bool;
+    // ── clubs/{clubId} ─────────────────────────────────────────────────────
+    // Un club "pendiente" solo lo ven su dueño y el admin. Lo activo es público (lo usan fixtures y tablas).
+    match /clubs/{clubId} {
+      allow read: if resource.data.status == 'activo' || isOwner(resource.data.ownerId) || isAdmin();
+
+      allow create:
+        // El admin carga clubes sin dueño o ya activos.
+        if (isAdmin()
+          && onlyKeys(['name', 'status', 'ownerId', 'isDemo', 'createdAt'])
+          && str(request.resource.data.name, 2, 100)
+          && request.resource.data.status in ['activo', 'pendiente']
+          && request.resource.data.ownerId is string
+          && request.resource.data.isDemo is bool
+          && request.resource.data.createdAt == request.time)
+        // Un usuario con perfil de club registra SU club (id = su uid): queda pendiente de aprobación.
+        || (signedIn() && clubId == request.auth.uid
+          && hasUserDoc(request.auth.uid) && userDoc(request.auth.uid).role == 'club'
+          && onlyKeys(['name', 'status', 'ownerId', 'isDemo', 'createdAt'])
+          && request.resource.data.name == userDoc(request.auth.uid).organization
+          && request.resource.data.status == 'pendiente'
+          && request.resource.data.ownerId == request.auth.uid
+          && request.resource.data.isDemo == false
+          && request.resource.data.createdAt == request.time);
+
+      // Solo el admin renombra o activa/desactiva un club (el dueño no puede aprobarse solo).
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'status'])
+        && str(request.resource.data.name, 2, 100)
+        && request.resource.data.status in ['activo', 'pendiente'];
+
+      allow delete: if isAdmin();
+
+      // ── Plantel ───────────────────────────────────────────────────────
+      function jugadorValido(d) {
+        return str(d.name, 2, 100) && str(d.position, 2, 60) && entero(d.matchesPlayed, 0, 999) && entero(d.tries, 0, 999);
+      }
+      match /jugadores/{id} {
+        allow read: if esClubActivo(clubId) || isAdmin();
+        allow create: if esClubActivo(clubId)
+          && onlyKeys(['name', 'position', 'matchesPlayed', 'tries', 'isDemo', 'createdAt'])
+          && request.resource.data.isDemo == false
+          && request.resource.data.createdAt == request.time
+          && jugadorValido(request.resource.data);
+        allow update: if esClubActivo(clubId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'position', 'matchesPlayed', 'tries'])
+          && jugadorValido(request.resource.data);
+        allow delete: if esClubActivo(clubId) || isAdmin();
+      }
+
+      // ── Asistencia: un documento por jugador y día (id = jugador_fecha) ─────────
+      function asistenciaValida(d, id) {
+        return str(d.playerId, 1, 100) && isoDate(d.date)
+          && d.status in ['presente', 'ausente', 'justificado']
+          && id == d.playerId + '_' + d.date
+          && exists(/databases/$(database)/documents/clubs/$(clubId)/jugadores/$(d.playerId));
+      }
+      match /asistencias/{id} {
+        allow read: if esClubActivo(clubId) || isAdmin();
+        allow create: if esClubActivo(clubId) && onlyKeys(['playerId', 'date', 'status']) && asistenciaValida(request.resource.data, id);
+        allow update: if esClubActivo(clubId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+          && asistenciaValida(request.resource.data, id);
+        allow delete: if esClubActivo(clubId) || isAdmin();
+      }
+
+      // ── Lesiones (registro interno de ejemplo) ───────────────────────────────
+      match /lesiones/{id} {
+        allow read: if esClubActivo(clubId) || isAdmin();
+        allow create: if esClubActivo(clubId)
+          && onlyKeys(['playerId', 'playerName', 'date', 'area', 'status', 'isDemo', 'createdAt'])
+          && str(request.resource.data.playerId, 1, 100)
+          && exists(/databases/$(database)/documents/clubs/$(clubId)/jugadores/$(request.resource.data.playerId))
+          && request.resource.data.playerName == get(/databases/$(database)/documents/clubs/$(clubId)/jugadores/$(request.resource.data.playerId)).data.name
+          && isoDate(request.resource.data.date)
+          && request.resource.data.area in ['Rodilla', 'Tobillo', 'Hombro', 'Muslo', 'Otra']
+          && request.resource.data.status in ['En recuperación', 'Alta deportiva']
+          && request.resource.data.isDemo == false
+          && request.resource.data.createdAt == request.time;
+        // Solo se puede cambiar el estado (por ejemplo, dar el alta deportiva).
+        allow update: if esClubActivo(clubId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+          && request.resource.data.status in ['En recuperación', 'Alta deportiva'];
+        allow delete: if esClubActivo(clubId) || isAdmin();
+      }
     }
-    match /items/{id} {
-      // Lo publicado es público; lo no publicado solo lo ve su dueño o el admin.
-      allow read: if resource.data.publicado == true || isOwner(resource.data.ownerId) || isAdmin();
 
-      // Solo un socio ACTIVO (aprobado) crea, y a su nombre.
-      allow create: if hasRole('socio')
-        && onlyKeys(['ownerId', 'ownerName', 'titulo', 'descripcion', 'publicado', 'isDemo', 'createdAt'])
-        && request.resource.data.ownerId == request.auth.uid
-        && request.resource.data.ownerName == userDoc(request.auth.uid).displayName
-        && request.resource.data.isDemo == false
+    // ── categorias/{id} (competencia · categoría · temporada) ──────────────
+    function categoriaValida(d) { return str(d.competition, 2, 100) && str(d.name, 1, 60) && str(d.season, 2, 60); }
+    match /categorias/{id} {
+      allow read: if true;
+      allow create: if gestionaTorneos()
+        && onlyKeys(['competition', 'name', 'season', 'isDemo', 'createdAt'])
+        && request.resource.data.isDemo is bool
         && request.resource.data.createdAt == request.time
-        && itemValido(request.resource.data);
+        && categoriaValida(request.resource.data);
+      allow update: if gestionaTorneos()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['competition', 'name', 'season'])
+        && categoriaValida(request.resource.data);
+      allow delete: if gestionaTorneos();
+    }
 
-      // Edición: el dueño (si sigue activo) o el admin; no se puede cambiar de dueño.
-      allow update: if ((hasRole('socio') && isOwner(resource.data.ownerId)) || isAdmin())
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['titulo', 'descripcion', 'publicado'])
-        && itemValido(request.resource.data);
-
-      allow delete: if (hasRole('socio') && isOwner(resource.data.ownerId)) || isAdmin();
+    // ── partidos/{id} (fixture y resultados) ──────────────────────────────
+    // Un partido sin puntajes (null) todavía no se jugó; los puntajes se cargan de a pares.
+    function puntajesValidos(d) {
+      return (d.homeScore == null && d.awayScore == null) || (entero(d.homeScore, 0, 300) && entero(d.awayScore, 0, 300));
+    }
+    function clubActivoConNombre(clubId, nombre) {
+      return exists(/databases/$(database)/documents/clubs/$(clubId))
+        && get(/databases/$(database)/documents/clubs/$(clubId)).data.status == 'activo'
+        && get(/databases/$(database)/documents/clubs/$(clubId)).data.name == nombre;
+    }
+    match /partidos/{id} {
+      allow read: if true;
+      allow create: if gestionaTorneos()
+        && onlyKeys(['categoryId', 'round', 'homeClubId', 'awayClubId', 'home', 'away', 'homeScore', 'awayScore', 'isDemo', 'createdAt'])
+        && hasKeys(['categoryId', 'round', 'homeClubId', 'awayClubId', 'home', 'away', 'homeScore', 'awayScore', 'isDemo', 'createdAt'])
+        && entero(request.resource.data.round, 1, 60)
+        && str(request.resource.data.categoryId, 1, 100)
+        && exists(/databases/$(database)/documents/categorias/$(request.resource.data.categoryId))
+        && request.resource.data.homeClubId != request.resource.data.awayClubId
+        && clubActivoConNombre(request.resource.data.homeClubId, request.resource.data.home)
+        && clubActivoConNombre(request.resource.data.awayClubId, request.resource.data.away)
+        && puntajesValidos(request.resource.data)
+        && request.resource.data.isDemo is bool
+        && request.resource.data.createdAt == request.time;
+      // Después de creado solo cambian la fecha (jornada) y el resultado.
+      allow update: if gestionaTorneos()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['round', 'homeScore', 'awayScore'])
+        && entero(request.resource.data.round, 1, 60)
+        && puntajesValidos(request.resource.data);
+      allow delete: if gestionaTorneos();
     }
   }
 }
