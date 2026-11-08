@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router'
 import { useAuth } from '@/auth/useAuth'
+import { RecuperarClave } from '@/components/RecuperarClave'
 import { Alerta, Boton, Campo, Cargando, Tarjeta } from '@/components/ui'
 import { panelDe, ROLES_REGISTRABLES, type RolRegistrable } from '@/config/app'
 
@@ -88,6 +89,7 @@ export function Ingresar() {
         </form>
         <p className="my-4 text-center text-xs text-suave">o</p>
         <BotonGoogle onClick={() => void conGoogle()} deshabilitado={enviando} />
+        <RecuperarClave />
         <p className="mt-4 text-center text-sm text-suave">
           ¿No tenés cuenta? <Link to="/app/registro" className="font-semibold text-primario">Registrate</Link>
         </p>
