@@ -13,7 +13,7 @@ export function PanelShell({ clave, activa, subtitulo, usuario, children }: { cl
   return (
     <div className="md:grid md:grid-cols-[15rem_minmax(0,1fr)]">
       <aside className="border-b border-borde bg-[#0f1d17] md:min-h-[calc(100dvh-4rem)] md:border-r md:border-b-0 md:p-4">
-        <p className="hidden px-3 pt-4 pb-2 text-[10px] font-extrabold tracking-[0.17em] text-suave uppercase md:block">{def.titulo} · {usuario}</p>
+        <p className="truncate px-4 pt-3 pb-1 text-[10px] font-extrabold tracking-[0.17em] text-suave uppercase md:px-3 md:pt-4 md:pb-2">{def.titulo} · {usuario}</p>
         <nav aria-label={`Panel de ${def.titulo}`} className="flex gap-1 overflow-x-auto px-3 py-2 md:flex-col md:px-0">
           {def.items.map(([k, etiqueta]) => (
             <NavLink
